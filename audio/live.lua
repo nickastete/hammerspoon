@@ -67,9 +67,9 @@ local function find(root, matches, depth)
 end
 
 function M.restore(pid, wanted, sleep, cleanup)
-    if not (wanted.Input or wanted.Output) then return end
+    if not (wanted.Input or wanted.Output) then return false end
     local app = M.running()
-    if not app or app:pid() ~= pid then return end
+    if not app or app:pid() ~= pid then return false end
     local root = hs.axuielement.applicationElement(app)
     root:setTimeout(0.3)
     local previous = hs.application.frontmostApplication()
@@ -118,6 +118,7 @@ function M.restore(pid, wanted, sleep, cleanup)
     if not control("Audio Output Device") then
         click(waitFor("Audio settings tab", function() return control("Audio") end))
     end
+    local restored = false
     for _, d in ipairs(directions) do
         if wanted[d] then
             local label = "Audio " .. d .. " Device"
@@ -126,7 +127,7 @@ function M.restore(pid, wanted, sleep, cleanup)
                 click(selector)
                 local item = waitFor("ES-9 in " .. label, function()
                     local popup = root.AXFocusedWindow
-                    if not popup or popup.AXTitle == "Settings" then return end
+                    if not popup or (popup.AXTitle or "") ~= "" then return end
                     return find(popup, function(e) return es9(e.AXTitle) or es9(e.AXDescription) end, 4)
                 end)
                 click(item)
@@ -134,9 +135,11 @@ function M.restore(pid, wanted, sleep, cleanup)
                     local el = control(label)
                     return el and es9(el.AXValue)
                 end)
+                restored = true
             end
         end
     end
+    return restored
 end
 
 return M

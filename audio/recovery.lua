@@ -58,6 +58,7 @@ local function run(manual, saved)
             health = command("probe")
             if health == 10 then return absent() end
         end
+        if not manual and health == 0 and not saved then return end
         local current = live.snapshot()
         local lost = live.lost(current, saved)
         if health == 0 and not manual and not lost then return end
@@ -84,12 +85,36 @@ local function run(manual, saved)
             if not verified then error("ES-9 reconnected but audio is still stalled.", 0) end
             log.i("USB reset " .. oldID .. " -> " .. newID .. ", streaming verified")
         end
+        local liveRestored = false
         if current then
-            live.restore(current.pid, wanted, sleep, function(f) job.cleanup = f end)
+            liveRestored = live.restore(current.pid, wanted, sleep, function(f) job.cleanup = f end)
         end
-        notify((health == 11 or lost) and "Audio restored." or "ES-9 reset. Audio streaming verified.")
+        if health == 11 or (lost and liveRestored) then
+            notify("Audio restored.")
+        elseif manual then
+            notify("ES-9 reset. Audio streaming verified.")
+        end
     end)
     resume()
+end
+
+function M.onPowerEvent(event)
+    if event == wake.systemWillSleep then
+        if wakeTimer then wakeTimer:stop() end
+        waitingForUnlock = nil
+        beforeSleep = live.snapshot()
+    elseif event == wake.systemDidWake then
+        if wakeTimer then wakeTimer:stop() end
+        wakeTimer = hs.timer.doAfter(3, function()
+            local saved = beforeSleep
+            beforeSleep = nil
+            run(false, saved)
+        end)
+    elseif event == wake.screensDidUnlock and waitingForUnlock then
+        local request = waitingForUnlock
+        waitingForUnlock = nil
+        run(request.manual, request.saved)
+    end
 end
 
 function M.start(hyper, dismiss)
@@ -97,22 +122,7 @@ function M.start(hyper, dismiss)
         dismiss()
         run(true)
     end)
-    M.watcher = wake.new(function(event)
-        if event == wake.systemWillSleep then
-            if wakeTimer then wakeTimer:stop() end
-            waitingForUnlock = nil
-            beforeSleep = live.snapshot()
-        elseif event == wake.systemDidWake then
-            if wakeTimer then wakeTimer:stop() end
-            local saved = beforeSleep
-            beforeSleep = nil
-            wakeTimer = hs.timer.doAfter(3, function() run(false, saved) end)
-        elseif event == wake.screensDidUnlock and waitingForUnlock then
-            local request = waitingForUnlock
-            waitingForUnlock = nil
-            run(request.manual, request.saved)
-        end
-    end):start()
+    M.watcher = wake.new(M.onPowerEvent):start()
 end
 
 return M
