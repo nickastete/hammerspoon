@@ -458,8 +458,10 @@ end)
 -- =============================================================================
 -- 6. SHORTCUT CHEAT SHEET OVERLAY
 -- =============================================================================
--- Hyper + / shows an on-screen cheat sheet of all shortcuts.
+-- Hyper + H shows an on-screen cheat sheet of all shortcuts.
 -- Press hyper + h again (or any other hyper shortcut) to dismiss.
+
+require("audio.recovery").start(hyper, dismissCheatsheet)
 
 hs.hotkey.bind(hyper, "h", function()
   if cheatsheetAlert then
@@ -483,7 +485,7 @@ hs.hotkey.bind(hyper, "h", function()
       "CLIPBOARD                      OTHER",
       "hyper + v   Save to Heynote    hyper + a   Caffeine (off/1h/4h/∞)",
       "hyper + y   Open Heynote       hyper + r   Reload config",
-      "                               hyper + h   This cheat sheet",
+      "hyper + u   Recover ES-9 audio hyper + h   This cheat sheet",
     }, "\n")
 
     hs.alert.defaultStyle.textFont = "Menlo"
