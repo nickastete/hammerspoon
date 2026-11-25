@@ -456,12 +456,21 @@ hs.hotkey.bind(hyper, "r", function()
 end)
 
 -- =============================================================================
--- 6. SHORTCUT CHEAT SHEET OVERLAY
+-- 6. SOUND
+-- =============================================================================
+
+require("audio.recovery").start(hyper, dismissCheatsheet)
+
+hs.hotkey.bind(hyper, "i", function()
+  dismissCheatsheet()
+  hs.application.launchOrFocusByBundleID("com.ableton.live")
+end)
+
+-- =============================================================================
+-- 7. SHORTCUT CHEAT SHEET OVERLAY
 -- =============================================================================
 -- Hyper + H shows an on-screen cheat sheet of all shortcuts.
 -- Press hyper + h again (or any other hyper shortcut) to dismiss.
-
-require("audio.recovery").start(hyper, dismissCheatsheet)
 
 hs.hotkey.bind(hyper, "h", function()
   if cheatsheetAlert then
@@ -475,17 +484,21 @@ hs.hotkey.bind(hyper, "h", function()
       "hyper + t   Terminal           hyper + g        Grid overlay",
       "hyper + b   Browser            hyper + arrows   Snap to half",
       "hyper + e   Editor             hyper + 1/2/3    Snap to thirds",
-      "                               hyper + [  /  ]  Left/right 2/3",
-      "hyper + s   Slack              hyper + return   Toggle maximize",
-      "hyper + f   Finder             hyper + w        Center window",
-      "hyper + c   Claude             hyper + .  /  ,  Next/prev screen",
-      "hyper + l   Linear             hyper + =        Make larger",
-      "hyper + m   Gmail              hyper + -        Make smaller",
+      "hyper + s   Slack              hyper + [  /  ]  Left/right 2/3",
+      "hyper + f   Finder             hyper + return   Toggle maximize",
+      "hyper + c   Claude             hyper + w        Center window",
+      "hyper + l   Linear             hyper + .  /  ,  Next/prev screen",
+      "hyper + m   Gmail              hyper + =        Make larger",
+      "                               hyper + -        Make smaller",
       "",
       "CLIPBOARD                      OTHER",
       "hyper + v   Save to Heynote    hyper + a   Caffeine (off/1h/4h/∞)",
       "hyper + y   Open Heynote       hyper + r   Reload config",
-      "hyper + u   Recover ES-9 audio hyper + h   This cheat sheet",
+      "                               hyper + h   This cheat sheet",
+      "",
+      "SOUND",
+      "hyper + u   Recover ES-9 audio",
+      "hyper + i   Ableton Live",
     }, "\n")
 
     hs.alert.defaultStyle.textFont = "Menlo"
