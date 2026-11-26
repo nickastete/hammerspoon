@@ -84,13 +84,25 @@ local function scenario(name, options)
 end
 
 local es9 = "ES-9 (16 In, 16 Out)"
-local desk = {pid = 42, Input = es9, Output = es9}
+local aggregate = "ES-9 + NT1"
+local desk = {pid = 42, Input = aggregate .. " (17 In, 16 Out)", Output = es9}
+local noMic = {pid = 42, Input = aggregate .. " (16 In, 16 Out)", Output = es9}
 local mixed = {pid = 42, Input = "USB Microphone", Output = es9}
 local dropped = {pid = 42, Input = "USB Microphone", Output = "No Device"}
-local outputOnly = {Input = false, Output = true}
+local outputOnly = {Input = false, Output = "ES-9"}
+local both = {Input = aggregate, Output = "ES-9"}
 scenario("wake away from desk", {absent = true, commands = "id"})
 scenario("manual away from desk", {manual = true, absent = true, commands = "id", notice = "ES-9 is disconnected."})
 scenario("healthy wake", {before = desk, commands = "id,probe"})
+scenario("mic unplugged during sleep", {before = desk, after = noMic, commands = "id,probe"})
+for _, state in ipairs({desk, noMic}) do
+    scenario("dropped aggregate input after " .. state.Input, {before = state,
+        after = {pid = 42, Input = "No Device", Output = es9}, commands = "id,probe",
+        notice = "Audio restored.", want = both})
+end
+scenario("manual recovery from missing devices", {manual = true,
+    before = {pid = 42, Input = "No Device", Output = "No Device"}, probes = {0,0},
+    commands = "id,probe,reset,id,probe", notice = "ES-9 reset. Audio streaming verified.", want = both})
 scenario("slow wake settles", {before = desk, probes = {11, 0}, commands = "id,probe,probe"})
 scenario("wake with Live closed", {probes = {11, 11, 0}, commands = "id,probe,probe,reset,id,probe", notice = "Audio restored."})
 scenario("manual with Live closed", {manual = true, probes = {0, 0}, commands = "id,probe,reset,id,probe", notice = "ES-9 reset. Audio streaming verified."})
@@ -101,3 +113,52 @@ scenario("different Live process", {before = mixed, after = {pid = 43, Input = d
 scenario("locked Live recovery after unlock", {locked = true, before = mixed, after = dropped, probes = {0,0}, commands = "id,probe,id,probe", notice = "Audio restored.", want = outputOnly})
 scenario("wake error reported once", {probes = {11,11}, commands = "id,probe,probe,reset", resetError = "USB busy", notice = "USB busy"})
 scenario("failed verification never reports recovery", {probes = {11,11,11,11,11}, commands = "id,probe,probe,reset,id,probe,probe,probe", notice = "ES-9 reconnected but audio is still stalled."})
+
+-- Exercise the actual selector lookup and readback with both devices present
+-- in the menu. With the mic unplugged their channel-count suffixes are identical.
+local function checkSelectors(aggregateLabel, input, output, expected)
+    local function element(fields)
+        fields.setTimeout = function() end
+        fields.actionNames = function() return {"AXPress"} end
+        return fields
+    end
+    local window = element({AXTitle = "Settings", AXChildren = {}})
+    local root = element({AXWindows = {window}})
+    local clicks = {}
+    local function selector(direction, initial)
+        local control = element({AXDescription = "Audio " .. direction .. " Device", AXValue = initial})
+        table.insert(window.AXChildren, control)
+        function control:performAction()
+            local menu = element({AXTitle = "", AXChildren = {}})
+            for _, label in ipairs({es9, aggregateLabel}) do
+                local item = element({AXTitle = label})
+                function item:performAction()
+                    control.AXValue = label
+                    table.insert(clicks, direction .. "=" .. label)
+                    root.AXFocusedWindow = window
+                    return true
+                end
+                table.insert(menu.AXChildren, item)
+            end
+            root.AXFocusedWindow = menu
+            return true
+        end
+    end
+    selector("Input", input)
+    selector("Output", output)
+    local app = {pid = function() return 42 end, activate = function() end}
+    hs.application = {
+        applicationsForBundleID = function() return {app} end,
+        frontmostApplication = function() return app end
+    }
+    hs.axuielement = {applicationElement = function() return root end}
+    local changed = realLive.restore(42, both, function() end, function() end)
+    assert(table.concat(clicks, ",") == expected and changed == (#expected > 0))
+end
+for _, state in ipairs({desk, noMic}) do
+    checkSelectors(state.Input, "No Device", "No Device", "Output=" .. es9 .. ",Input=" .. state.Input)
+    checkSelectors(state.Input, es9, es9, "Input=" .. state.Input)
+    checkSelectors(state.Input, state.Input, es9, "")
+    checkSelectors(state.Input, "USB Microphone", "Push", "")
+end
+print("ok - Live selector restoration with and without the mic")
