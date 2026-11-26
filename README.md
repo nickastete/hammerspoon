@@ -66,27 +66,31 @@ stream 11, and an operational error 12. Run the policy tests with
 Pressing Hyper+H displays this overlay on screen:
 
 ```
-+------------------------------------------------------------------+
-|                                                                  |
-|  HYPER KEY SHORTCUTS  (Caps Lock = Hyper)                        |
-|                                                                  |
-|  APP SWITCHING                  WINDOW MANAGEMENT                |
-|  hyper + t   Terminal           hyper + g        Grid overlay    |
-|  hyper + b   Browser            hyper + arrows   Snap to half    |
-|  hyper + e   Editor             hyper + 1/2/3    Snap to thirds  |
-|                                 hyper + [  /  ]  Left/right 2/3  |
-|  hyper + s   Slack              hyper + return   Toggle maximize |
-|  hyper + f   Finder             hyper + w        Center window   |
-|  hyper + c   Claude             hyper + .  /  ,  Next/prev screen|
-|  hyper + l   Linear             hyper + =        Make larger     |
-|  hyper + m   Gmail              hyper + -        Make smaller    |
-|                                                                  |
-|  CLIPBOARD                      OTHER                            |
-|  hyper + v   Save to Heynote    hyper + a   Caffeine (off/1h/4h)|
-|  hyper + y   Open Heynote       hyper + r   Reload config       |
-|  hyper + u   Recover ES-9 audio  hyper + h   This cheat sheet     |
-|                                                                  |
-+------------------------------------------------------------------+
++-------------------------------------------------------------------+
+|                                                                   |
+|  HYPER KEY SHORTCUTS  (Caps Lock = Hyper)                         |
+|                                                                   |
+|  APP SWITCHING                  WINDOW MANAGEMENT                 |
+|  hyper + t   Terminal           hyper + g        Grid overlay     |
+|  hyper + b   Browser            hyper + arrows   Snap to half     |
+|  hyper + e   Editor             hyper + 1/2/3    Snap to thirds   |
+|  hyper + s   Slack              hyper + [  /  ]  Left/right 2/3   |
+|  hyper + f   Finder             hyper + return   Toggle maximize  |
+|  hyper + c   Claude             hyper + w        Center window    |
+|  hyper + l   Linear             hyper + .  /  ,  Next/prev screen |
+|  hyper + m   Gmail              hyper + =        Make larger      |
+|                                 hyper + -        Make smaller     |
+|                                                                   |
+|  CLIPBOARD                      OTHER                             |
+|  hyper + v   Save to Heynote    hyper + a   Caffeine (off/1h/4h/∞)|
+|  hyper + y   Open Heynote       hyper + r   Reload config         |
+|                                 hyper + h   This cheat sheet      |
+|                                                                   |
+|  SOUND                                                            |
+|  hyper + u   Recover ES-9 audio                                   |
+|  hyper + i   Ableton Live                                         |
+|                                                                   |
++-------------------------------------------------------------------+
 ```
 
 ## Prerequisites
