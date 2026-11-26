@@ -2,8 +2,16 @@
 local M = {}
 local bundle = "com.ableton.live"
 local directions = {"Output", "Input"}
-local function es9(name)
-    return name and (name == "ES-9" or name:match("^ES%-9 %(") ~= nil)
+local deskDevice = {Input = "ES-9 + NT1", Output = "ES-9"}
+
+-- Live appends channel counts, which change when the USB mic is unplugged.
+local function deviceName(label)
+    if label then return (label:gsub(" %(%d+ In, %d+ Out%)$", "")) end
+end
+
+local function deskSelection(direction, label)
+    local name = deviceName(label)
+    return name == deskDevice[direction] or (direction == "Input" and name == "ES-9")
 end
 
 function M.running()
@@ -39,9 +47,10 @@ function M.intent(current, beforeSleep, manual)
     if not current then return wanted end
     for _, d in ipairs(directions) do
         local old = beforeSleep and beforeSleep.pid == current.pid and beforeSleep[d]
-        wanted[d] = es9(current[d]) or
-            (current[d] == "No Device" and (manual or es9(old))) or
-            (current[d] == nil and (manual or es9(old)))
+        if deskSelection(d, current[d]) or
+            ((current[d] == "No Device" or current[d] == nil) and (manual or deskSelection(d, old))) then
+            wanted[d] = deskDevice[d]
+        end
     end
     return wanted
 end
@@ -49,7 +58,7 @@ end
 function M.lost(current, beforeSleep)
     if not current or not beforeSleep or current.pid ~= beforeSleep.pid then return false end
     for _, d in ipairs(directions) do
-        if current[d] == "No Device" and es9(beforeSleep[d]) then return true end
+        if current[d] == "No Device" and deskSelection(d, beforeSleep[d]) then return true end
     end
     return false
 end
@@ -120,20 +129,24 @@ function M.restore(pid, wanted, sleep, cleanup)
     end
     local restored = false
     for _, d in ipairs(directions) do
-        if wanted[d] then
+        local target = wanted[d]
+        if target then
             local label = "Audio " .. d .. " Device"
             local selector = waitFor(label, function() return control(label) end)
-            if selector.AXValue == "No Device" then
+            local selected = deviceName(selector.AXValue)
+            if selected == "No Device" or (d == "Input" and selected == "ES-9") then
                 click(selector)
-                local item = waitFor("ES-9 in " .. label, function()
+                local item = waitFor(target .. " in " .. label, function()
                     local popup = root.AXFocusedWindow
                     if not popup or (popup.AXTitle or "") ~= "" then return end
-                    return find(popup, function(e) return es9(e.AXTitle) or es9(e.AXDescription) end, 4)
+                    return find(popup, function(e)
+                        return deviceName(e.AXTitle) == target or deviceName(e.AXDescription) == target
+                    end, 4)
                 end)
                 click(item)
                 waitFor(label .. " confirmation", function()
                     local el = control(label)
-                    return el and es9(el.AXValue)
+                    return el and deviceName(el.AXValue) == target
                 end)
                 restored = true
             end

@@ -39,9 +39,13 @@ The manual shortcut forces the reset even when a silent probe passes.
 
 If Live 12 (English UI) is running, the integration reads its recent device
 selections from the Live log and restores the input and output independently.
-On wake, a pre-sleep snapshot also permits restoration of an ES-9 selection that
-Live dropped during sleep. Another selected interface is preserved. Hyper+U can
-assign ES-9 to a selector showing **No Device**. When settings need inspection,
+The desk uses the **ES-9 + NT1** aggregate for input and **ES-9** for output.
+The aggregate includes the ES-9 on inputs 1–16 and adds the USB mic on input 17
+when connected. Leave the aggregate selected with the mic unplugged.
+On wake, a pre-sleep snapshot identifies a desk device that Live dropped.
+Hyper+U can restore either selector from **No Device**. During recovery, a
+bare ES-9 input selection is upgraded to the aggregate. Other interfaces
+chosen in Live are preserved. When settings need inspection,
 Live can briefly come to the front. Locked sessions defer the operation until
 unlock when Live is open. A closed Live stays closed. Transport and Live Sets
 are never saved or changed by the recovery command.
