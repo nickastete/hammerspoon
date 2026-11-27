@@ -25,8 +25,10 @@ local function run(manual, saved)
             if job.cleanup then pcall(job.cleanup) end
             active = nil
             if not ok then
-                log.e(tostring(err))
-                notify(tostring(err))
+                local message = tostring(err)
+                if job.resetVerified then message = "ES-9 reset and streaming verified. " .. message end
+                log.e(message)
+                notify(message)
             end
         end
     end
@@ -83,6 +85,7 @@ local function run(manual, saved)
                 sleep(0.35)
             end
             if not verified then error("ES-9 reconnected but audio is still stalled.", 0) end
+            job.resetVerified = true
             log.i("USB reset " .. oldID .. " -> " .. newID .. ", streaming verified")
         end
         local liveRestored = false
@@ -108,6 +111,7 @@ function M.onPowerEvent(event)
         wakeTimer = hs.timer.doAfter(3, function()
             local saved = beforeSleep
             beforeSleep = nil
+            log.i("Checking ES-9 after system wake")
             run(false, saved)
         end)
     elseif event == wake.screensDidUnlock and waitingForUnlock then

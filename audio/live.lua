@@ -91,8 +91,8 @@ function M.restore(pid, wanted, sleep, cleanup)
             if w.AXTitle == "Settings" or w.AXTitle == "Preferences" then return w end
         end
     end
-    local function waitFor(what, fn)
-        for _ = 1, 12 do
+    local function waitFor(what, fn, attempts)
+        for _ = 1, attempts or 24 do
             local value = fn()
             if value then return value end
             sleep(0.15)
@@ -108,21 +108,37 @@ function M.restore(pid, wanted, sleep, cleanup)
         if not p or not s then error("Live control cannot be clicked", 0) end
         hs.eventtap.leftClick({x = p.x + s.w / 2, y = p.y + s.h / 2})
     end
-    local alreadyOpen = settings() ~= nil
     local opened = false
     cleanup(function()
         if front() and opened and settings() then hs.eventtap.keyStroke({}, "escape", 0, app) end
         if previous and previous:pid() ~= pid and front() then previous:activate() end
     end)
-    app:activate()
-    waitFor("front window", front)
-    if not alreadyOpen then
+    -- Live can spend several seconds rebuilding Core Audio after USB is ready.
+    -- Retry activation and
+    -- wait for Live's accessibility server before opening Settings.
+    local ready = false
+    for poll = 0, 60 do
+        if not app:isRunning() then return false end
+        if front() and root.AXWindows then ready = true; break end
+        if poll == 60 then break end
+        if poll % 8 == 0 and not front() then
+            if app:isHidden() then app:unhide() end
+            if not app:activate() then app:setFrontmost() end
+        end
+        sleep(0.25)
+    end
+    if not ready then
+        local foreground = hs.application.frontmostApplication()
+        error("Live audio settings unavailable after retrying (foreground: " ..
+              (foreground and foreground:name() or "none") .. ").", 0)
+    end
+    if not settings() then
         hs.eventtap.keyStroke({"cmd"}, ",", 0, app)
         opened = true
     end
-    local win = waitFor("Settings", settings)
+    waitFor("Settings", settings, 80)
     local function control(desc)
-        return find(win, function(e) return e.AXDescription == desc end, 5)
+        return find(settings(), function(e) return e.AXDescription == desc end, 5)
     end
     if not control("Audio Output Device") then
         click(waitFor("Audio settings tab", function() return control("Audio") end))
@@ -132,7 +148,10 @@ function M.restore(pid, wanted, sleep, cleanup)
         local target = wanted[d]
         if target then
             local label = "Audio " .. d .. " Device"
-            local selector = waitFor(label, function() return control(label) end)
+            local selector = waitFor(label, function()
+                local el = control(label)
+                if el and type(el.AXValue) == "string" and el.AXValue ~= "" then return el end
+            end)
             local selected = deviceName(selector.AXValue)
             if selected == "No Device" or (d == "Input" and selected == "ES-9") then
                 click(selector)
