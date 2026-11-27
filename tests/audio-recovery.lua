@@ -45,6 +45,7 @@ local function scenario(name, options)
         snapshot = function() return current end, intent = realLive.intent, lost = realLive.lost,
         restore = function(pid, wanted)
             table.insert(repairs, {pid = pid, wanted = wanted})
+            if options.restoreError then error(options.restoreError, 0) end
             return wanted.Input or wanted.Output
         end
     }
@@ -103,6 +104,9 @@ end
 scenario("manual recovery from missing devices", {manual = true,
     before = {pid = 42, Input = "No Device", Output = "No Device"}, probes = {0,0},
     commands = "id,probe,reset,id,probe", notice = "ES-9 reset. Audio streaming verified.", want = both})
+scenario("Live timeout after successful manual reset", {manual = true, before = desk, probes = {0, 0},
+    commands = "id,probe,reset,id,probe", restoreError = "Live routing unavailable",
+    notice = "ES-9 reset and streaming verified. Live routing unavailable", want = both})
 scenario("slow wake settles", {before = desk, probes = {11, 0}, commands = "id,probe,probe"})
 scenario("wake with Live closed", {probes = {11, 11, 0}, commands = "id,probe,probe,reset,id,probe", notice = "Audio restored."})
 scenario("manual with Live closed", {manual = true, probes = {0, 0}, commands = "id,probe,reset,id,probe", notice = "ES-9 reset. Audio streaming verified."})
@@ -116,7 +120,7 @@ scenario("failed verification never reports recovery", {probes = {11,11,11,11,11
 
 -- Exercise the actual selector lookup and readback with both devices present
 -- in the menu. With the mic unplugged their channel-count suffixes are identical.
-local function checkSelectors(aggregateLabel, input, output, expected)
+local function checkSelectors(aggregateLabel, input, output, expected, focus)
     local function element(fields)
         fields.setTimeout = function() end
         fields.actionNames = function() return {"AXPress"} end
@@ -146,13 +150,28 @@ local function checkSelectors(aggregateLabel, input, output, expected)
     end
     selector("Input", input)
     selector("Output", output)
-    local app = {pid = function() return 42 end, activate = function() end}
+    local elapsed, attempts = 0, 0
+    local previous = {pid = function() return 1 end, name = function() return "Other app" end}
+    local app = {pid = function() return 42 end, isHidden = function() return false end,
+        isRunning = function() return true end,
+        activate = function() attempts = attempts + 1; return false end,
+        setFrontmost = function() return true end}
+    local function foreground()
+        if focus and (focus.blocked or attempts < 2 or elapsed < 7) then return previous end
+        return app
+    end
     hs.application = {
         applicationsForBundleID = function() return {app} end,
-        frontmostApplication = function() return app end
+        frontmostApplication = foreground
     }
     hs.axuielement = {applicationElement = function() return root end}
-    local changed = realLive.restore(42, both, function() end, function() end)
+    local function sleep(seconds) elapsed = elapsed + seconds; assert(elapsed < 20) end
+    local ok, changed = pcall(realLive.restore, 42, both, sleep, function() end)
+    if focus and focus.blocked then
+        assert(not ok and changed:match("foreground: Other app") and #clicks == 0 and attempts > 1)
+        return
+    end
+    assert(ok, changed)
     assert(table.concat(clicks, ",") == expected and changed == (#expected > 0))
 end
 for _, state in ipairs({desk, noMic}) do
@@ -162,3 +181,7 @@ for _, state in ipairs({desk, noMic}) do
     checkSelectors(state.Input, "USB Microphone", "Push", "")
 end
 print("ok - Live selector restoration with and without the mic")
+
+checkSelectors(desk.Input, desk.Input, "No Device", "Output=" .. es9, {})
+checkSelectors(desk.Input, desk.Input, "No Device", "", {blocked = true})
+print("ok - delayed activation retries and persistent focus failure")
